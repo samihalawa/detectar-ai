@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DETECTAR.AI — AI Content Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111;
+            --bg-tertiary: #1a1a1a;
+            --border: #222;
+            --text-primary: #e5e5e5;
+            --text-secondary: #888;
+            --text-muted: #666;
+            --accent-red: #ff3b3b;
+            --accent-orange: #ff8c42;
+            --accent-yellow: #ffd93d;
+            --accent-green: #4ade80;
+            --accent-teal: #6bcb77;
+        }
+
+        body {
+            font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Noise overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 48px;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            color: #fff;
+        }
+
+        .logo span { color: var(--accent-red); }
+
+        .tagline {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .header-badge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 16px;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+
+        .header-badge .badge-text {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--accent-green);
+        }
+
+        .header-badge .badge-label {
+            font-size: 8px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        nav {
+            display: flex;
+            gap: 2px;
+            padding: 0 48px;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            z-index: 1;
+        }
+
+        .nav-btn {
+            padding: 16px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .nav-btn:hover { color: var(--text-primary); }
+        .nav-btn.active {
+            color: #fff;
+            border-bottom: 2px solid var(--accent-red);
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 48px;
+            padding: 24px 48px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .stat-value.ai { color: var(--accent-red); }
+        .stat-value.human { color: var(--accent-green); }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-divider {
+            width: 1px;
+            height: 40px;
+            background: #333;
+        }
+
+        main {
+            padding: 48px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .detect-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 48px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1024px) {
+            .detect-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .panel-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+        }
+
+        .char-count {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        textarea {
+            width: 100%;
+            height: 300px;
+            background: var(--bg-primary);
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 16px;
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: 'IBM Plex Sans', sans-serif;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        textarea:focus {
+            border-color: var(--accent-red);
+        }
+
+        .input-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid #333;
+            color: var(--text-muted);
+        }
+
+        .btn-secondary:hover {
+            border-color: #555;
+            color: var(--text-primary);
+        }
+
+        .btn-primary {
+            background: var(--accent-red);
+            border: none;
+            color: #fff;
+            font-weight: 700;
+            padding: 12px 32px;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.02);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(255, 59, 59, 0.1);
+            border: 1px solid rgba(255, 59, 59, 0.3);
+            border-radius: 4px;
+            color: var(--accent-red);
+            font-size: 13px;
+        }
+
+        .result-panel { display: none; }
+        .result-panel.active { display: block; }
+
+        .scan-id {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .verdict-section {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 24px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .verdict-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .verdict-inner {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .verdict-percent {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .verdict-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+        }
+
+        .verdict-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .verdict-badge {
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #000;
+            display: inline-block;
+        }
+
+        .confidence-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .signals-section {
+            margin-bottom: 24px;
+        }
+
+        .signals-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .signal-item {
+            margin-bottom: 16px;
+        }
+
+        .signal-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .signal-name {
+            font-size: 13px;
+            color: #ccc;
+        }
+
+        .signal-score {
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .signal-bar {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+
+        .signal-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        .signal-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .meta-section {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .meta-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .meta-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        /* History Section */
+        .history-section, .api-section {
+            max-width: 800px;
+            margin: 0 auto;
+            display: none;
+        }
+
+        .history-section.active, .api-section.active {
+            display: block;
+        }
+
+        .empty-text {
+            color: var(--text-muted);
+            text-align: center;
+            padding: 48px;
+        }
+
+        .history-list {
+            margin-top: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .history-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .history-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .history-verdict {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .history-prob {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .history-preview {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        .history-meta {
+            display: flex;
+            gap: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* API Section */
+        .api-section { max-width: 900px; }
+
+        .api-endpoint {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0 16px;
+        }
+
+        .api-method {
+            padding: 6px 12px;
+            background: var(--accent-green);
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #000;
+        }
+
+        .api-path {
+            font-size: 14px;
+            color: #fff;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .code-block {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            overflow: auto;
+            margin-bottom: 32px;
+        }
+
+        .code-block pre {
+            font-size: 13px;
+            color: var(--text-primary);
+            font-family: 'IBM Plex Mono', monospace;
+            line-height: 1.6;
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        .api-subtitle {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pricing-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 32px 24px;
+            text-align: center;
+        }
+
+        .pricing-card.featured {
+            border-color: var(--accent-red);
+            transform: scale(1.05);
+        }
+
+        .pricing-tier {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .pricing-price {
+            font-size: 32px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 24px;
+        }
+
+        .pricing-features {
+            list-style: none;
+            text-align: left;
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 2;
+        }
+
+        footer {
+            display: flex;
+            justify-content: space-between;
+            padding: 24px 48px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-muted);
+            position: relative;
+            z-index: 1;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        /* Loading spinner */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-section">
+            <h1 class="logo">DETECTAR<span>.AI</span></h1>
+            <span class="tagline">AI Content Intelligence</span>
+        </div>
+        <div class="header-badge">
+            <span class="badge-text">EU AI ACT</span>
+            <span class="badge-label">COMPLIANT</span>
+        </div>
+    </header>
+
+    <nav>
+        <button class="nav-btn active" data-tab="detect">DETECT</button>
+        <button class="nav-btn" data-tab="history">HISTORY</button>
+        <button class="nav-btn" data-tab="api">API</button>
+    </nav>
+
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-value" id="totalScans">0</span>
+            <span class="stat-label">Total Scans</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-value ai" id="aiDetected">0</span>
+            <span class="stat-label">AI Detected</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-value human" id="humanDetected">0</span>
+            <span class="stat-label">Human Written</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-value" id="avgProb">0%</span>
+            <span class="stat-label">Avg AI Probability</span>
+        </div>
+    </div>
+
+    <main>
+        <!-- Detect Section -->
+        <div class="detect-section" id="detectSection">
+            <div class="panel input-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">ANALYZE CONTENT</h2>
+                    <span class="char-count"><span id="charCount">0</span> / 50,000</span>
+                </div>
+                <textarea id="inputText" placeholder="Paste your text here for AI detection analysis...
+
+Minimum 50 characters required."></textarea>
+                <div class="input-actions">
+                    <button class="btn btn-secondary" id="clearBtn">CLEAR</button>
+                    <button class="btn btn-primary" id="analyzeBtn" disabled>DETECT AI</button>
+                </div>
+                <div class="error-message" id="errorMsg" style="display: none;"></div>
+            </div>
+
+            <div class="panel result-panel" id="resultPanel">
+                <div class="panel-header">
+                    <h2 class="panel-title">ANALYSIS RESULT</h2>
+                    <span class="scan-id" id="scanId"></span>
+                </div>
+
+                <div class="verdict-section">
+                    <div class="verdict-circle" id="verdictCircle">
+                        <div class="verdict-inner">
+                            <span class="verdict-percent" id="verdictPercent">0%</span>
+                            <span class="verdict-label">AI</span>
+                        </div>
+                    </div>
+                    <div class="verdict-info">
+                        <span class="verdict-badge" id="verdictBadge">Loading...</span>
+                        <span class="confidence-text" id="confidenceText"></span>
+                    </div>
+                </div>
+
+                <div class="signals-section">
+                    <h3 class="signals-title">DETECTION SIGNALS</h3>
+                    <div id="signalsList"></div>
+                </div>
+
+                <div class="meta-section" id="metaSection"></div>
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="history-section" id="historySection">
+            <h2 class="panel-title">SCAN HISTORY</h2>
+            <div id="historyList" class="history-list">
+                <p class="empty-text">No scans yet. Analyze some content to see history.</p>
+            </div>
+        </div>
+
+        <!-- API Section -->
+        <div class="api-section" id="apiSection">
+            <h2 class="panel-title">API DOCUMENTATION</h2>
+            
+            <div class="api-endpoint">
+                <div class="api-method">POST</div>
+                <code class="api-path">/api/v1/detect</code>
+            </div>
+            
+            <div class="code-block">
+                <pre>// Request
+curl -X POST http://localhost:8000/api/v1/detect \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Your content here...", "language": "auto"}'
+
+// Response
+{
+  "id": "abc123...",
+  "ai_probability": 0.75,
+  "verdict": "LIKELY_AI",
+  "confidence": "MEDIUM",
+  "signals": [...],
+  "language_detected": "en",
+  "word_count": 150,
+  "analysis_time_ms": 45
+}</pre>
+            </div>
+
+            <h3 class="api-subtitle">PRICING</h3>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h4 class="pricing-tier">STARTER</h4>
+                    <div class="pricing-price">€99/mo</div>
+                    <ul class="pricing-features">
+                        <li>10,000 API calls</li>
+                        <li>Email support</li>
+                        <li>Basic analytics</li>
+                    </ul>
+                </div>
+                <div class="pricing-card featured">
+                    <h4 class="pricing-tier">PROFESSIONAL</h4>
+                    <div class="pricing-price">€299/mo</div>
+                    <ul class="pricing-features">
+                        <li>100,000 API calls</li>
+                        <li>Priority support</li>
+                        <li>Advanced analytics</li>
+                        <li>Webhook integrations</li>
+                    </ul>
+                </div>
+                <div class="pricing-card">
+                    <h4 class="pricing-tier">ENTERPRISE</h4>
+                    <div class="pricing-price">Custom</div>
+                    <ul class="pricing-features">
+                        <li>Unlimited calls</li>
+                        <li>Dedicated support</li>
+                        <li>On-premise option</li>
+                        <li>SLA guarantee</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <span>© 2024 DETECTAR.AI — AI Content Intelligence Platform</span>
+        <div class="footer-links">
+            <a href="#">Terms</a>
+            <a href="#">Privacy</a>
+            <a href="#">API Docs</a>
+        </div>
+    </footer>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        
+        // DOM Elements
+        const inputText = document.getElementById('inputText');
+        const charCount = document.getElementById('charCount');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const errorMsg = document.getElementById('errorMsg');
+        const resultPanel = document.getElementById('resultPanel');
+        
+        // Navigation
+        const navBtns = document.querySelectorAll('.nav-btn');
+        const detectSection = document.getElementById('detectSection');
+        const historySection = document.getElementById('historySection');
+        const apiSection = document.getElementById('apiSection');
+        
+        // State
+        let history = [];
+        
+        // Verdict colors
+        const verdictColors = {
+            'AI_GENERATED': '#ff3b3b',
+            'LIKELY_AI': '#ff8c42',
+            'MIXED': '#ffd93d',
+            'LIKELY_HUMAN': '#6bcb77',
+            'HUMAN_WRITTEN': '#4ade80',
+        };
+        
+        const verdictLabels = {
+            'AI_GENERATED': 'AI Generated',
+            'LIKELY_AI': 'Likely AI',
+            'MIXED': 'Mixed / Uncertain',
+            'LIKELY_HUMAN': 'Likely Human',
+            'HUMAN_WRITTEN': 'Human Written',
+        };
+        
+        // Event Listeners
+        inputText.addEventListener('input', () => {
+            const len = inputText.value.length;
+            charCount.textContent = len;
+            analyzeBtn.disabled = len < 50;
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            inputText.value = '';
+            charCount.textContent = '0';
+            analyzeBtn.disabled = true;
+            resultPanel.classList.remove('active');
+        });
+        
+        analyzeBtn.addEventListener('click', analyzeText);
+        
+        navBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                navBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const tab = btn.dataset.tab;
+                detectSection.style.display = tab === 'detect' ? 'grid' : 'none';
+                historySection.classList.toggle('active', tab === 'history');
+                apiSection.classList.toggle('active', tab === 'api');
+            });
+        });
+        
+        // Functions
+        async function analyzeText() {
+            const text = inputText.value;
+            if (text.length < 50) {
+                showError('Text must be at least 50 characters');
+                return;
+            }
+            
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerHTML = '<span class="loading"></span>ANALYZING...';
+            hideError();
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/detect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, language: 'auto' }),
+                });
+                
+                if (!res.ok) throw new Error('Detection failed');
+                
+                const data = await res.json();
+                displayResult(data);
+                await fetchHistory();
+                await fetchStats();
+            } catch (e) {
+                showError('Analysis failed. Ensure the API is running on localhost:8000');
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = 'DETECT AI';
+            }
+        }
+        
+        function displayResult(data) {
+            resultPanel.classList.add('active');
+            
+            document.getElementById('scanId').textContent = `ID: ${data.id}`;
+            document.getElementById('verdictPercent').textContent = `${Math.round(data.ai_probability * 100)}%`;
+            
+            const color = verdictColors[data.verdict] || '#888';
+            const angle = data.ai_probability * 360;
+            document.getElementById('verdictCircle').style.background = 
+                `conic-gradient(${color} ${angle}deg, #1a1a1a ${angle}deg)`;
+            
+            const badge = document.getElementById('verdictBadge');
+            badge.textContent = verdictLabels[data.verdict] || data.verdict;
+            badge.style.background = color;
+            
+            document.getElementById('confidenceText').textContent = `Confidence: ${data.confidence}`;
+            
+            // Signals
+            const signalsList = document.getElementById('signalsList');
+            signalsList.innerHTML = data.signals.map(s => {
+                const fillColor = s.score > 0.6 ? '#ff3b3b' : s.score > 0.4 ? '#ffd93d' : '#4ade80';
+                return `
+                    <div class="signal-item">
+                        <div class="signal-header">
+                            <span class="signal-name">${s.name}</span>
+                            <span class="signal-score">${Math.round(s.score * 100)}%</span>
+                        </div>
+                        <div class="signal-bar">
+                            <div class="signal-fill" style="width: ${s.score * 100}%; background: ${fillColor}"></div>
+                        </div>
+                        <span class="signal-desc">${s.description}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            // Metadata
+            document.getElementById('metaSection').innerHTML = `
+                <div class="meta-item">
+                    <span class="meta-label">Language</span>
+                    <span class="meta-value">${data.language_detected.toUpperCase()}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Words</span>
+                    <span class="meta-value">${data.word_count}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Characters</span>
+                    <span class="meta-value">${data.character_count}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Analysis Time</span>
+                    <span class="meta-value">${data.analysis_time_ms}ms</span>
+                </div>
+            `;
+        }
+        
+        async function fetchHistory() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/history`);
+                const data = await res.json();
+                history = data.scans || [];
+                renderHistory();
+            } catch (e) {
+                console.error('Failed to fetch history');
+            }
+        }
+        
+        function renderHistory() {
+            const container = document.getElementById('historyList');
+            if (history.length === 0) {
+                container.innerHTML = '<p class="empty-text">No scans yet. Analyze some content to see history.</p>';
+                return;
+            }
+            
+            container.innerHTML = history.map(item => `
+                <div class="history-item">
+                    <div class="history-main">
+                        <span class="history-verdict" style="color: ${verdictColors[item.verdict]}">${verdictLabels[item.verdict]}</span>
+                        <span class="history-prob">${Math.round(item.ai_probability * 100)}% AI</span>
+                    </div>
+                    <p class="history-preview">${item.text_preview}</p>
+                    <div class="history-meta">
+                        <span>${item.word_count} words</span>
+                        <span>•</span>
+                        <span>${new Date(item.timestamp).toLocaleString()}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function fetchStats() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/stats`);
+                const data = await res.json();
+                
+                document.getElementById('totalScans').textContent = data.total_scans;
+                document.getElementById('aiDetected').textContent = data.ai_detected;
+                document.getElementById('humanDetected').textContent = data.human_detected;
+                document.getElementById('avgProb').textContent = `${Math.round(data.avg_ai_probability * 100)}%`;
+            } catch (e) {
+                console.error('Failed to fetch stats');
+            }
+        }
+        
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.style.display = 'block';
+        }
+        
+        function hideError() {
+            errorMsg.style.display = 'none';
+        }
+        
+        // Initial load
+        fetchHistory();
+        fetchStats();
+    </script>
+</body>
+</html>
